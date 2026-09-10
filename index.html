@@ -146,6 +146,7 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted
 <script src="pool-english.js"></script>
 <script src="pool-physics.js"></script>
 <script src="english-gen.js"></script>
+<script src="skill-tutorials.js"></script>
 <script src="practice-bank.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -207,7 +208,7 @@ function prevGradeOf(g){
 if (typeof QUESTION_BANK === "undefined") { var QUESTION_BANK = {}; }
 if (typeof QUESTION_BANK_AR === "undefined") { var QUESTION_BANK_AR = {}; }
 if (typeof QUESTION_POOL === "undefined") { var QUESTION_POOL = {}; }
-var APP_BUILD = "2026-09-10i";  // shown in the header so you can confirm the latest build is running
+var APP_BUILD = "2026-09-10j";  // shown in the header so you can confirm the latest build is running
 
 /* ===== Difficulty-tagged pool assembly (Foundational / Core / Challenge) =====
    Each diagnostic is assembled from a larger tagged pool with a deliberate spread of
@@ -3120,6 +3121,7 @@ function viewFolders(){
           <span class="pill ${done===w.tasks.length?"green":done>0?"amber":"grey"}">${done}/${w.tasks.length} done</span>
         </div>
         <div class="body">
+          ${(typeof SKILL_TUTORIALS!=="undefined"&&SKILL_TUTORIALS[w.skill])?`<div class="notice" style="margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#eff6ff;border-color:#bfdbfe;color:var(--ink)"><span>📘 New to <b>${w.skill}</b>? Read a quick explanation before you practise.</span><button class="btn sm" style="white-space:nowrap" onclick="showTutorial('${w.skill.replace(/'/g,"\\'")}')">📘 Learn this skill</button></div>`:""}
           ${w.tasks.map((tk,i)=>{const key=`${t}-${w.week}-${i}`;const ck=!!S.taskDone[key];
             return `<div class="task"><input type="checkbox" ${ck?"checked":""} onchange="toggleTask('${key}','${id}')">
             <div style="flex:1"><div class="tt" style="${ck?'text-decoration:line-through;color:#8a94a3':''}">${tk}</div>
@@ -3354,6 +3356,21 @@ let EX=null;
 // Practice runs in the same secure "lockdown" environment as the diagnostic (fullscreen, blocked
 // copy/paste/right-click, tab-switch/leave detection). Uses the "activity" context, so leaving is
 // flagged with the on-screen guard but the practice is NOT auto-submitted or ended (it isn't graded).
+// Show a student-facing explanation of a skill (from the weekly folder) before practising.
+// Read-only, no lockdown — it's just an explanation to learn from.
+function showTutorial(skill){
+  var tut=(typeof SKILL_TUTORIALS!=="undefined")?SKILL_TUTORIALS[skill]:null;
+  var m=document.getElementById("exModal"); if(!m)return;
+  if(!tut){ m.innerHTML='<div class="ovl"><div class="ex"><div class="flex-between"><h2 style="margin:0">'+skill+'</h2><button class="btn ghost sm" onclick="closeTutorial()">✕</button></div><p class="muted">An explanation for this skill isn\'t available yet.</p></div></div>'; m.style.display="block"; return; }
+  m.innerHTML='<div class="ovl"><div class="ex">'+
+    '<div class="flex-between" style="align-items:center"><h2 style="margin:0">📘 '+tut.title+'</h2><button class="btn ghost sm" onclick="closeTutorial()">✕</button></div>'+
+    '<p class="sub" style="margin:4px 0 12px">Read this, then close it and tap <b>▶ Practice</b> on a task to try it.</p>'+
+    '<div style="font-size:14px;line-height:1.6">'+tut.html+'</div>'+
+    '<div style="margin-top:16px;text-align:right"><button class="btn gold" onclick="closeTutorial()">Got it — start practising</button></div>'+
+    '</div></div>';
+  m.style.display="block";
+}
+function closeTutorial(){ var m=document.getElementById("exModal"); if(m){ m.style.display="none"; m.innerHTML=""; } }
 function launchExercise(key,skill){
   // Practice opens for students AND for teachers previewing a student (read-only just means
   // ticking the box won't be saved). Any error is surfaced instead of failing silently.
@@ -3376,6 +3393,12 @@ function finishExercise(){ if(EX){ S.taskDone[EX.key]=true; save(); } closeExerc
 function closeExercise(){ lockdownEnd(); EX=null; const m=document.getElementById("exModal"); if(m){ m.style.display="none"; m.innerHTML=""; } }
 function renderExercise(){
   const m=document.getElementById("exModal"); const d=EX.def; let body="";
+  // A collapsible explanation of the skill, right at the top, so students can review it while they
+  // work through the exercise (open by default before they submit).
+  var _tut=(typeof SKILL_TUTORIALS!=="undefined")?SKILL_TUTORIALS[EX.skill]:null;
+  if(_tut){ body+=`<details ${EX.submitted?"":"open"} style="border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:8px 12px;margin:0 0 12px">
+    <summary style="cursor:pointer;font-weight:700;font-size:14px">📘 Quick explanation — ${_tut.title}</summary>
+    <div style="font-size:13.5px;line-height:1.6;margin-top:8px">${_tut.html}</div></details>`; }
   if(d.type==="writing"){
     body=(d.passageHtml||"")+`<p style="font-size:14px;background:#f3f4ff;border:1px solid var(--line);border-radius:8px;padding:12px">${d.prompt}</p>
       <textarea oninput="exWrite(this.value)" rows="8" placeholder="Write your response here…" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;resize:vertical">${(EX.resp.text||"").replace(/</g,"&lt;")}</textarea>`;
