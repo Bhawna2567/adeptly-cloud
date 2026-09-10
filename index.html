@@ -53,6 +53,16 @@ input:focus,select:focus{outline:none;border-color:var(--green)}
 .pill.red{background:#ffe4e6;color:var(--red)}
 .pill.grey{background:#eef1f5;color:var(--muted)}
 .q{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+/* Side-by-side reading layout: passage stays visible while the questions scroll. */
+.readtest{display:flex;gap:16px;align-items:flex-start;margin:8px 0 14px}
+.rt-passage{flex:0 0 42%;background:#f3f4ff;border:1px solid var(--line);border-radius:10px;padding:14px;position:sticky;top:56px;max-height:calc(100vh - 96px);overflow:auto}
+.rt-passage h3{margin:0 0 6px;font-size:15px}
+.rt-passage .rt-text{font-size:14px;line-height:1.8}
+.rt-questions{flex:1 1 auto;min-width:0}
+@media(max-width:820px){
+  .readtest{flex-direction:column;gap:10px}
+  .rt-passage{flex:none;width:auto;position:sticky;top:44px;max-height:42vh;box-shadow:0 4px 10px rgba(0,0,0,.06)}
+}
 .q .meta{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
 .q .stem{font-size:15px;font-weight:600;margin-bottom:12px}
 .opt{display:block;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:14px;transition:.12s}
@@ -197,7 +207,7 @@ function prevGradeOf(g){
 if (typeof QUESTION_BANK === "undefined") { var QUESTION_BANK = {}; }
 if (typeof QUESTION_BANK_AR === "undefined") { var QUESTION_BANK_AR = {}; }
 if (typeof QUESTION_POOL === "undefined") { var QUESTION_POOL = {}; }
-var APP_BUILD = "2026-09-10h";  // shown in the header so you can confirm the latest build is running
+var APP_BUILD = "2026-09-10i";  // shown in the header so you can confirm the latest build is running
 
 /* ===== Difficulty-tagged pool assembly (Foundational / Core / Challenge) =====
    Each diagnostic is assembled from a larger tagged pool with a deliberate spread of
@@ -2637,12 +2647,17 @@ function viewDiagnostic(){
     : `<div class="card"><h2>${S.customTitle?S.customTitle.replace(/</g,"&lt;"):("Diagnostic Test — based on "+gLabel(S.student.prevGrade)+" "+S.student.subject)}</h2>
     <p class="sub">${S.student.name} is entering ${gLabel(S.student.curGrade)}. This test checks mastery of the prior grade before measuring readiness for the new one.</p>
     ${S.prior?`<div class="notice" style="background:#eef2ff;border-color:#d6dbff;color:var(--ink)">This is your <b>Term ${S.curTerm||""}</b> diagnostic — it builds on your <b>Term ${S.prior.term}</b> results (overall ${S.prior.score}%). Your plan continues to target the skills you were still developing.</div>`:""}`;
-  if(!AR && S.student.subject==="English" && !(S.customQuestions&&S.customQuestions.length)){
+  // When there is a reading passage, open a two-pane layout: the passage sits in a sticky panel
+  // (beside the questions on wide screens, pinned at the top on phones/tablets) so students can
+  // keep it in view while they scroll the questions. Otherwise the test is a single column.
+  var hasPassage = (!AR && S.student.subject==="English" && !(S.customQuestions&&S.customQuestions.length));
+  if(hasPassage){
     var _rc=readingCompRot(S.student.prevGrade,S.curTerm,studentNonce());
-    html+=`<div style="background:#f3f4ff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:8px 0 14px">
-      <h3 style="margin:0 0 6px;font-size:15px">📖 Reading passage — ${_rc.title}</h3>
-      <div style="font-size:14px;line-height:1.75">${_rc.passage.replace(/</g,"&lt;")}</div>
-      <p class="muted" style="font-size:12px;margin:8px 0 0">Read the passage, then answer the reading questions that follow.</p></div>`;
+    html+=`<div class="readtest"><aside class="rt-passage">
+      <h3>📖 Reading passage — ${_rc.title}</h3>
+      <div class="rt-text">${_rc.passage.replace(/</g,"&lt;")}</div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Keep this passage in view while you answer the reading questions.</p></aside>
+      <div class="rt-questions">`;
   }
   qs.forEach((q,i)=>{
     html+=`<div class="q"${AR?' dir="rtl" style="text-align:right"':''}><div class="meta">${skillLabel(q.skill,AR)}</div><div class="stem">${AR?("سؤال "+(i+1)+". "):("Q"+(i+1)+". ")}${q.q}</div>`;
@@ -2663,7 +2678,9 @@ function viewDiagnostic(){
   const answered=Object.keys(S.answers).length;
   const allDone=answered>=qs.length;
   html+=`<div class="flex-between"${AR?' dir="rtl"':''}><span class="muted">${counterText(answered,qs.length,allDone,AR)}</span>
-    <button id="submitBtn" class="btn gold" ${allDone?"":"disabled"} onclick="grade()">${AR?"إرسال وتحليل ←":"Submit &amp; analyse →"}</button></div></div>`;
+    <button id="submitBtn" class="btn gold" ${allDone?"":"disabled"} onclick="grade()">${AR?"إرسال وتحليل ←":"Submit &amp; analyse →"}</button></div>`;
+  if(hasPassage){ html+=`</div></div>`; }  // close .rt-questions and .readtest
+  html+=`</div>`;  // close .card
   return html;
 }
 function counterText(answered,total,allDone,ar){

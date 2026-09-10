@@ -1,7 +1,7 @@
 /* Adeptly service worker — self-healing, network-first.
    Always loads the latest code when online; never pins an old index.html.
    Bump CACHE to force every client to drop stale caches and update. */
-const CACHE = "adeptly-v59";
+const CACHE = "adeptly-v60";
 
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("message", e => { if (e.data === "skip") self.skipWaiting(); });
