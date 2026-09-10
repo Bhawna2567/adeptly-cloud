@@ -208,7 +208,7 @@ function prevGradeOf(g){
 if (typeof QUESTION_BANK === "undefined") { var QUESTION_BANK = {}; }
 if (typeof QUESTION_BANK_AR === "undefined") { var QUESTION_BANK_AR = {}; }
 if (typeof QUESTION_POOL === "undefined") { var QUESTION_POOL = {}; }
-var APP_BUILD = "2026-09-10j";  // shown in the header so you can confirm the latest build is running
+var APP_BUILD = "2026-09-10k";  // shown in the header so you can confirm the latest build is running
 
 /* ===== Difficulty-tagged pool assembly (Foundational / Core / Challenge) =====
    Each diagnostic is assembled from a larger tagged pool with a deliberate spread of
@@ -1940,12 +1940,14 @@ function previewDiagnostic(){
   var m=document.getElementById("exModal"); if(!m)return;
   if(!qs||!qs.length){ m.innerHTML='<div class="ovl"><div class="ex"><div class="flex-between"><h2 style="margin:0">Preview</h2><button class="btn ghost sm" onclick="closeExercise()">✕</button></div><p class="muted" style="margin:0">No questions available for this selection yet.</p></div></div>'; m.style.display="block"; return; }
   var body="";
-  if(passage){ body+='<div style="background:#f3f4ff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px"><b>📖 Reading passage — '+passage.title+'</b><div style="font-size:13px;line-height:1.7;margin-top:6px">'+passage.passage.replace(/</g,"&lt;")+'</div></div>'; }
+  // Two-pane layout (same as the student test): passage in a sticky panel beside the questions.
+  if(passage){ body+='<div class="readtest"><aside class="rt-passage"><h3>📖 Reading passage — '+passage.title+'</h3><div class="rt-text">'+passage.passage.replace(/</g,"&lt;")+'</div></aside><div class="rt-questions">'; }
   body+=qs.map(function(q,i){ return '<div class="q"><div class="meta">'+(q.skill||"")+'</div><div class="stem">Q'+(i+1)+'. '+((q.q||"")+"").replace(/</g,"&lt;")+'</div>'+(q.options||[]).map(function(o,oi){ return '<label class="opt '+(oi===q.answer?"exok":"")+'">'+(oi===q.answer?"✅ ":"")+(""+o).replace(/</g,"&lt;")+'</label>'; }).join("")+'</div>'; }).join("");
   var _pvWp=(subj==="English" && passage)?writingPromptRot(grade,"1",pvNonce()):null;
   if(_pvWp){
     body+='<div class="q"><div class="meta">Writing · Written Response</div><div class="stem">✍️ Writing Task — students write a full response (not multiple choice):</div><p style="font-size:13px;background:#f3f4ff;border:1px solid var(--line);border-radius:8px;padding:10px;margin:6px 0 0">'+(""+_pvWp).replace(/</g,"&lt;")+'</p></div>';
   }
+  if(passage){ body+='</div></div>'; }  // close .rt-questions and .readtest
   m.innerHTML='<div class="ovl"><div class="ex"><div class="flex-between"><h2 style="margin:0">👁 Preview — '+title+'</h2><div><button class="btn gold sm" style="margin-right:6px" onclick="downloadDiagnosticPDF(true)">⬇ Download PDF</button><button class="btn ghost sm" onclick="closeExercise()">✕</button></div></div><p class="sub">'+qs.length+' question(s) · correct answers are highlighted here for you. Students do not see the answers.</p>'+body+'</div></div>';
   m.style.display="block";
 }
