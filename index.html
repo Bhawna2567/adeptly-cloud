@@ -208,7 +208,7 @@ function prevGradeOf(g){
 if (typeof QUESTION_BANK === "undefined") { var QUESTION_BANK = {}; }
 if (typeof QUESTION_BANK_AR === "undefined") { var QUESTION_BANK_AR = {}; }
 if (typeof QUESTION_POOL === "undefined") { var QUESTION_POOL = {}; }
-var APP_BUILD = "2026-09-10k";  // shown in the header so you can confirm the latest build is running
+var APP_BUILD = "2026-09-11a";  // shown in the header so you can confirm the latest build is running
 
 /* ===== Difficulty-tagged pool assembly (Foundational / Core / Challenge) =====
    Each diagnostic is assembled from a larger tagged pool with a deliberate spread of
@@ -334,7 +334,7 @@ function genMathParametric(gradeId,seedStr,count){
 function assembleDiagnostic(grade,subj,seedStr){
   // English is fully generated (grammar + vocabulary) so every paper is different and never repeats.
   // Reading questions and the writing prompt are added by the callers (readingCompRot / writingPromptRot).
-  if(subj==="English" && typeof ENG_GEN!=="undefined" && ENG_GEN.items){ return ENG_GEN.items(grade,seedStr,12); }
+  if(subj==="English" && typeof ENG_GEN!=="undefined" && ENG_GEN.items){ return ENG_GEN.items(grade,seedStr,7); }
   // A curriculum-aligned pool (if present) overrides everything. For Maths grades without a pool,
   // fall back to the parametric generator (fresh numbers, never repeats).
   var pool=(QUESTION_POOL[grade]&&QUESTION_POOL[grade][subj])?QUESTION_POOL[grade][subj]:null;
@@ -1889,7 +1889,7 @@ function buildDiagnosticData(){
     // test. The rolling preview nonce makes each generated preview a totally different paper.
     var pvN=pvNonce();
     var assembled=assembleDiagnostic(grade,subj,diagSeed(AUTH&&AUTH.email,grade,subj,"1",pvN));
-    if(subj==="English"){ var rc=readingCompRot(grade,"1",pvN); passage=rc; var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:"Reading"};}); qs=assembled?cq.concat(assembled):cq; }
+    if(subj==="English"){ var rc=readingCompRot(grade,"1",pvN); passage=rc; var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:x.skill||"Reading",level:x.level};}); qs=assembled?cq.concat(assembled):cq; }
     else { qs=assembled; }
     if(!qs||!qs.length){ var bank=(QUESTION_BANK[grade]&&QUESTION_BANK[grade][subj])?QUESTION_BANK[grade][subj]:null; if(bank) qs=bank; }  // legacy fallback
     title="Diagnostic — "+gLabel(grade)+" "+subjLabelLong(subj);
@@ -2614,21 +2614,19 @@ function getQuestions(){
   // Preferred: assemble a difficulty-mixed test (Maths is fresh each time; English uses the pool). The
   // generation nonce makes each new diagnostic different so questions never repeat.
   var assembled=assembleDiagnostic(g,subj,diagSeed(AUTH&&AUTH.email,g,subj,S.curTerm,studentNonce()));
-  // English ALWAYS includes the reading-comprehension questions for the passage shown at the top of
-  // the test. The pool only holds Grammar/Vocabulary items, so we must add the Reading questions here
-  // too (the teacher preview already does). They are APPENDED after the pool so a student who is
-  // already mid-test keeps their existing answer positions (answers are keyed by question index)
-  // when the page refreshes to this build.
+  // English test ORDER: Reading comprehension → Vocabulary (from the passage) → Grammar → Writing.
+  // rc.qs already contains the reading questions FOLLOWED BY the passage-vocabulary questions (each
+  // carrying its own skill), so we keep those first and add the grammar items after them.
   if(subj==="English" && !diagnosticIsArabic()){
     var rc=readingCompRot(g,S.curTerm,studentNonce());
-    var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:"Reading"};});
+    var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:x.skill||"Reading",level:x.level};});
     var poolE=(assembled&&assembled.length)?assembled:((QUESTION_BANK[g]&&QUESTION_BANK[g][subj])?QUESTION_BANK[g][subj]:[]);
-    return (poolE||[]).concat(cq);
+    return cq.concat(poolE||[]);
   }
   if(assembled&&assembled.length) return assembled;
   // Fallback to the older flat bank for any grade/subject not yet in the pool.
   var bank=(QUESTION_BANK[g]&&QUESTION_BANK[g][subj])?QUESTION_BANK[g][subj]:null;
-  if(subj==="English"){ var rc2=readingCompRot(g,S.curTerm,studentNonce()); var cq2=rc2.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:"Reading"};}); return bank? bank.concat(cq2) : cq2; }
+  if(subj==="English"){ var rc2=readingCompRot(g,S.curTerm,studentNonce()); var cq2=rc2.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:x.skill||"Reading",level:x.level};}); return bank? cq2.concat(bank) : cq2; }
   return bank;
 }
 function viewDiagnostic(){
@@ -2748,11 +2746,11 @@ function rebuildQuestionsForAssignment(a){
   // Reproduce the same assembled pool test (deterministic from the student + grade + subject + term).
   var assembled=assembleDiagnostic(g,subj,diagSeed(a.studentEmail,g,subj,a.term,a.genNonce||0));
   if(subj==="English"){
-    // Reproduce the same generated English paper (pool then reading), matching what the student saw.
+    // Reproduce the same generated English paper (reading + passage-vocabulary, then grammar).
     var rc=readingCompRot(g,a.term,a.genNonce||0);
-    var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:"Reading"};});
+    var cq=rc.qs.map(function(x){return {q:x.q,options:x.options,answer:x.answer,skill:x.skill||"Reading",level:x.level};});
     var bankE=(assembled&&assembled.length)?assembled:((QUESTION_BANK[g]&&QUESTION_BANK[g][subj])?QUESTION_BANK[g][subj]:[]);
-    return (bankE||[]).concat(cq);
+    return cq.concat(bankE||[]);
   }
   if(assembled&&assembled.length) return assembled;
   var bank=(QUESTION_BANK[g]&&QUESTION_BANK[g][subj])?QUESTION_BANK[g][subj]:null;
@@ -3123,7 +3121,7 @@ function viewFolders(){
           <span class="pill ${done===w.tasks.length?"green":done>0?"amber":"grey"}">${done}/${w.tasks.length} done</span>
         </div>
         <div class="body">
-          ${(typeof SKILL_TUTORIALS!=="undefined"&&SKILL_TUTORIALS[w.skill])?`<div class="notice" style="margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#eff6ff;border-color:#bfdbfe;color:var(--ink)"><span>📘 New to <b>${w.skill}</b>? Read a quick explanation before you practise.</span><button class="btn sm" style="white-space:nowrap" onclick="showTutorial('${w.skill.replace(/'/g,"\\'")}')">📘 Learn this skill</button></div>`:""}
+          ${(typeof SKILL_TUTORIALS!=="undefined"&&SKILL_TUTORIALS[w.skill])?`<div class="notice" style="margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#eff6ff;border-color:#bfdbfe;color:var(--ink)"><span>📘 <b>Learn ${w.skill} first</b> — a step-by-step explanation with examples, in English &amp; Arabic.</span><button class="btn sm" style="white-space:nowrap" onclick="showTutorial('${w.skill.replace(/'/g,"\\'")}')">📘 Learn this skill</button></div>`:""}
           ${w.tasks.map((tk,i)=>{const key=`${t}-${w.week}-${i}`;const ck=!!S.taskDone[key];
             return `<div class="task"><input type="checkbox" ${ck?"checked":""} onchange="toggleTask('${key}','${id}')">
             <div style="flex:1"><div class="tt" style="${ck?'text-decoration:line-through;color:#8a94a3':''}">${tk}</div>
@@ -3402,7 +3400,7 @@ function renderExercise(){
     <summary style="cursor:pointer;font-weight:700;font-size:14px">📘 Quick explanation — ${_tut.title}</summary>
     <div style="font-size:13.5px;line-height:1.6;margin-top:8px">${_tut.html}</div></details>`; }
   if(d.type==="writing"){
-    body=(d.passageHtml||"")+`<p style="font-size:14px;background:#f3f4ff;border:1px solid var(--line);border-radius:8px;padding:12px">${d.prompt}</p>
+    body+=(d.passageHtml||"")+`<p style="font-size:14px;background:#f3f4ff;border:1px solid var(--line);border-radius:8px;padding:12px">${d.prompt}</p>
       <textarea oninput="exWrite(this.value)" rows="8" placeholder="Write your response here…" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;resize:vertical">${(EX.resp.text||"").replace(/</g,"&lt;")}</textarea>`;
   } else {
     if(d.instr) body+=`<div class="notice" style="margin:0 0 12px;background:#eef2ff;border-color:#c7d2fe"><b>Activity:</b> ${String(d.instr).replace(/</g,"&lt;")} <span class="muted">— practise this ${EX.skill} skill with the ${d.type==="mcq"?"questions":"problems"} below.</span></div>`;
